@@ -160,7 +160,13 @@ const DeviceRow = ({ devices, index, style }) => {
 
   const [localAnchorState, setLocalAnchorState] = useState(null);
   const [imageError, setImageError] = useState(false);
+  const [now, setNow] = useState(dayjs());
   const vehicleImage = item.attributes?.photo || item.attributes?.image || item.attributes?.deviceImage;
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(dayjs()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setImageError(false);
@@ -199,16 +205,54 @@ const DeviceRow = ({ devices, index, style }) => {
   const primaryValue = resolveFieldValue(devicePrimary);
   const secondaryValue = resolveFieldValue(deviceSecondary);
 
+  const formatDuration = (ms) => {
+    const d = dayjs.duration(ms);
+    const days = Math.floor(d.asDays());
+    const hours = d.hours();
+    const minutes = d.minutes();
+
+    const parts = [];
+    if (days > 0) parts.push(`${days} dias`);
+    if (hours > 0) parts.push(`${hours} horas`);
+    parts.push(`${minutes} min`);
+
+    return parts.join(', ').replace(/, ([^,]*)$/, ' e $1');
+  };
+
   const secondaryText = () => {
     let status;
     let statusClass;
     if (item.status === 'online' || !item.lastUpdate) {
-      if (position && position.speed > 0) {
-        status = 'Movendo';
-        statusClass = classes.statusMoving;
-      } else {
-        status = formatStatus(item.status, t);
-        statusClass = item.status === 'online' ? classes.statusOnline : classes.statusOffline;
+      const speed = position?.speed || 0;
+      const ignition = position?.attributes?.ignition;
+
+      // Logic: Ignition ON
+      if (ignition) {
+        if (speed > 0) {
+          status = 'Movendo';
+          statusClass = classes.statusMoving;
+        } else {
+          status = 'Ligado';
+          statusClass = classes.statusOnline; // Green
+        }
+      }
+      // Logic: Ignition OFF (Stopped)
+      else {
+        // Prefer server-computed duration, else fallback to time since last fix (sleep time)
+        let diffMs = 0;
+        if (position?.attributes?.duration) {
+          diffMs = position.attributes.duration;
+        } else if (position?.attributes?.parkingTime) {
+          diffMs = position.attributes.parkingTime;
+        } else if (position?.fixTime) {
+          diffMs = now.diff(dayjs(position.fixTime));
+        }
+
+        // Safety check for negative diffs
+        if (diffMs < 0) diffMs = 0;
+
+        status = `Tempo Parado: ${formatDuration(diffMs)}`;
+        statusClass = classes.statusOnline; // Green (as requested to keep it clean, or use neutral)
       }
     } else {
       status = dayjs(item.lastUpdate).fromNow();
