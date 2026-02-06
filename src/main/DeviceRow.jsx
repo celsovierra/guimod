@@ -52,8 +52,8 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   avatar: {
-    width: 40,
-    height: 40,
+    width: 50,
+    height: 50,
     backgroundColor: '#f0f0f0',
     borderRadius: '50%',
     display: 'flex',
@@ -63,8 +63,8 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'hidden',
   },
   icon: {
-    width: '24px',
-    height: '24px',
+    width: '32px',
+    height: '32px',
     filter: 'brightness(0) invert(1)',
   },
   vehicleImage: {
@@ -130,6 +130,19 @@ const useStyles = makeStyles()((theme) => ({
   iconBlue: {
     color: '#007bff',
   },
+  iconMoving: {
+    filter: 'brightness(0) invert(9%) sepia(96%) saturate(7432%) hue-rotate(248deg) brightness(100%) contrast(145%)',
+  },
+  statusMoving: {
+    color: '#0000FF',
+    fontWeight: 600,
+    animation: '$pulseText 1.5s infinite ease-in-out',
+  },
+  '@keyframes pulseText': {
+    '0%': { textShadow: '0 0 0px #0000FF' },
+    '50%': { textShadow: '0 0 8px #0000FF' },
+    '100%': { textShadow: '0 0 0px #0000FF' },
+  },
 }));
 
 const DeviceRow = ({ devices, index, style }) => {
@@ -189,8 +202,13 @@ const DeviceRow = ({ devices, index, style }) => {
     let status;
     let statusClass;
     if (item.status === 'online' || !item.lastUpdate) {
-      status = formatStatus(item.status, t);
-      statusClass = item.status === 'online' ? classes.statusOnline : classes.statusOffline;
+      if (position && position.speed > 0) {
+        status = 'Movendo';
+        statusClass = classes.statusMoving;
+      } else {
+        status = formatStatus(item.status, t);
+        statusClass = item.status === 'online' ? classes.statusOnline : classes.statusOffline;
+      }
     } else {
       status = dayjs(item.lastUpdate).fromNow();
       statusClass = classes.statusInactive;
@@ -235,7 +253,7 @@ const DeviceRow = ({ devices, index, style }) => {
                 onError={() => setImageError(true)}
               />
             ) : (
-              <img className={classes.icon} src={mapIcons[mapIconKey(item.category)]} alt="" />
+              <img className={cx(classes.icon, { [classes.iconMoving]: position && position.speed > 0 })} src={mapIcons[mapIconKey(item.category)]} alt="" />
             )}
           </Avatar>
         </ListItemAvatar>
