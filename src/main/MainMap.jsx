@@ -20,7 +20,7 @@ import MapScale from '../map/MapScale';
 import MapNotification from '../map/notification/MapNotification';
 import useFeatures from '../common/util/useFeatures';
 
-const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
+const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, devicesOpen }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
 
@@ -54,11 +54,11 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
           // condition: if few positions or a single selected position, render markers layer
           (filteredPositions.length <= 50) || selectedPosition
         ) && (
-          <MapMarkers
-            markers={filteredPositions}
-            showTitles
-          />
-        )}
+            <MapMarkers
+              markers={filteredPositions}
+              showTitles
+            />
+          )}
         <MapDefaultCamera />
         <MapSelectedDevice />
         <PoiMap />
@@ -69,7 +69,7 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
       {!features.disableEvents && (
         <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
       )}
-      {desktop && (
+      {desktop && devicesOpen && (
         <MapPadding start={parseInt(theme.dimensions.drawerWidthDesktop, 10) + parseInt(theme.spacing(1.5), 10)} />
       )}
     </>

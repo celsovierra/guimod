@@ -9,8 +9,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import Draggable from 'react-draggable';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
+import { IconButton } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 // ⬇️ Linha corrigida para apontar para o novo arquivo MapDeviceInfo
-import StatusCard from '../common/components/StatusCard.jsx.jsx'; 
+import StatusCard from '../common/components/StatusCard.jsx.jsx';
 import { devicesActions } from '../store';
 import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
@@ -114,10 +116,11 @@ const MainPage = () => {
           filteredPositions={filteredPositions}
           selectedPosition={selectedPosition}
           onEventsClick={onEventsClick}
+          devicesOpen={devicesOpen}
         />
       )}
       <div className={classes.sidebar}>
-        <Paper square elevation={3} className={classes.header}>
+        <Paper square elevation={3} className={classes.header} style={!devicesOpen ? { display: 'none' } : {}}>
           <MainToolbar
             filteredDevices={filteredDevices}
             devicesOpen={devicesOpen}
@@ -139,6 +142,7 @@ const MainPage = () => {
                 filteredPositions={filteredPositions}
                 selectedPosition={selectedPosition}
                 onEventsClick={onEventsClick}
+                devicesOpen={devicesOpen}
               />
             </div>
           )}
@@ -147,11 +151,20 @@ const MainPage = () => {
           </Paper>
         </div>
         {desktop && (
-          <div className={classes.footer}>
+          <div className={classes.footer} style={!devicesOpen ? { display: 'none' } : {}}>
             <BottomMenu />
           </div>
         )}
       </div>
+      {!devicesOpen && (
+        <div className={classes.header} style={{ position: 'absolute', top: theme.spacing(1.5), left: theme.spacing(1.5), zIndex: 6 }}>
+          <Paper square elevation={3}>
+            <IconButton onClick={() => setDevicesOpen(true)}>
+              <MenuIcon />
+            </IconButton>
+          </Paper>
+        </div>
+      )}
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
       {selectedDeviceId && (
         <Draggable nodeRef={nodeRef}>
