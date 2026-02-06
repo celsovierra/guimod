@@ -14,6 +14,7 @@ import BatteryCharging20Icon from '@mui/icons-material/BatteryCharging20';
 import ErrorIcon from '@mui/icons-material/Error';
 import LockIcon from '@mui/icons-material/Lock';
 import AnchorIcon from '@mui/icons-material/Anchor';
+import KeyIcon from '@mui/icons-material/Key';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { devicesActions } from '../store';
@@ -258,7 +259,19 @@ const DeviceRow = ({ devices, index, style }) => {
           </Avatar>
         </ListItemAvatar>
         <ListItemText
-          primary={primaryValue}
+          primary={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis' }}>{primaryValue}</span>
+              {position && position.attributes.hasOwnProperty('ignition') && (
+                <KeyIcon
+                  style={{
+                    fontSize: 16,
+                    color: position.attributes.ignition ? '#2e7d32' : '#c62828'
+                  }}
+                />
+              )}
+            </div>
+          }
           secondary={secondaryText()}
           slots={{
             primary: Typography,
@@ -268,6 +281,7 @@ const DeviceRow = ({ devices, index, style }) => {
             primary: {
               noWrap: true,
               className: classes.primaryText,
+              component: 'div',
             },
             secondary: {
               noWrap: true,

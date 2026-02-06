@@ -35,6 +35,10 @@ import AnchorIcon from '@mui/icons-material/Anchor';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import RouteIcon from '@mui/icons-material/Route';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import KeyIcon from '@mui/icons-material/Key';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Collapse } from '@mui/material';
 
 import { useTranslation } from './LocalizationProvider';
 import PositionValue from './PositionValue';
@@ -227,6 +231,19 @@ const useStyles = makeStyles()((theme) => ({
   pulse: {
     animation: '$pulse 1s infinite ease-in-out',
   },
+  toggleBar: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 0,
+    backgroundColor: theme.palette.background.paper,
+    borderBottom: '1px solid rgba(0,0,0,0.05)',
+    cursor: 'pointer',
+    '&:hover': {
+      backgroundColor: theme.palette.grey[50],
+    },
+    minHeight: 24,
+  },
 }));
 
 const StatusRow = ({ name, content }) => (
@@ -259,6 +276,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions }) => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [commandPending, setCommandPending] = useState(false);
   const [isAnchorActive, setIsAnchorActive] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
     if (device) {
@@ -430,74 +448,94 @@ const StatusCard = ({ deviceId, position, onClose, disableActions }) => {
 
   return (
     <Card className={classes.card} elevation={0}>
-      <Box className={classes.hero}>
-        <div className={classes.heroPattern} />
+      <div
+        className={classes.toggleBar}
+        onClick={() => setExpanded(!expanded)}
+        title={expanded ? "Recolher" : "Expandir"}
+      >
+        {expanded ? <ExpandLessIcon fontSize="small" color="action" /> : <ExpandMoreIcon fontSize="small" color="action" />}
+      </div>
 
-        <Box className={classes.headerOverlay}>
-          <Box className={`${classes.dragHandle} status-card-drag-handle`}>
-            <DragIndicatorIcon fontSize="small" />
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Box className={classes.hero}>
+          <div className={classes.heroPattern} />
+
+          <Box className={classes.headerOverlay}>
+            <Box className={`${classes.dragHandle} status-card-drag-handle`}>
+              <DragIndicatorIcon fontSize="small" />
+            </Box>
+            <IconButton size="small" onClick={onClose} className={classes.closeButton}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
           </Box>
-          <IconButton size="small" onClick={onClose} className={classes.closeButton}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
+
+          {customImage ? (
+            <Box component="img" src={customImage} className={classes.heroImageCover} alt="Vehicle" />
+          ) : (
+            <Box component="img" src={vehicleSrc} className={classes.heroImage} alt="Vehicle Icon" />
+          )}
         </Box>
 
-        {customImage ? (
-          <Box component="img" src={customImage} className={classes.heroImageCover} alt="Vehicle" />
-        ) : (
-          <Box component="img" src={vehicleSrc} className={classes.heroImage} alt="Vehicle Icon" />
-        )}
-      </Box>
-
-      <Box className={classes.mainContent}>
-        <Box className={classes.titleRow}>
-          <div>
-            <Typography className={classes.name} title={device?.name}>
-              {device?.name || t('sharedUnknown')}
-            </Typography>
-            <Typography className={classes.plate}>
-              {device?.uniqueId || device?.plate || ''}
-            </Typography>
-          </div>
-          <Chip
-            label={statusOnline ? t('sharedOnline') : t('sharedOffline')}
-            className={classes.statusChip}
-            style={{
-              backgroundColor: statusOnline ? '#e8f5e9' : '#ffebee',
-              color: statusOnline ? '#2e7d32' : '#c62828'
-            }}
-          />
-        </Box>
-
-        {position && (
-          <Box className={classes.scrollContent}>
-            <Table size="small" className={classes.attributesTable}>
-              <TableBody>
-                {positionItems
-                  .split(',')
-                  .filter((key) => position.hasOwnProperty(key) || (position.attributes && position.attributes.hasOwnProperty(key)))
-                  .map((key) => (
-                    <StatusRow
-                      key={key}
-                      name={positionAttributes[key]?.name || key}
-                      content={
-                        key === 'address' && position.address && typeof position.address === 'string'
-                          ? position.address.split(',')[0]
-                          : (
-                            <PositionValue
-                              position={position}
-                              property={position.hasOwnProperty(key) ? key : null}
-                              attribute={position.hasOwnProperty(key) ? null : key}
-                            />
-                          )
-                      }
-                    />
-                  ))}
-              </TableBody>
-            </Table>
+        <Box className={classes.mainContent}>
+          <Box className={classes.titleRow}>
+            <div>
+              <Typography className={classes.name} title={device?.name}>
+                {device?.name || t('sharedUnknown')}
+                {position && position.attributes.hasOwnProperty('ignition') && (
+                  <KeyIcon
+                    style={{
+                      fontSize: 18,
+                      marginLeft: 8,
+                      verticalAlign: 'text-bottom',
+                      color: position.attributes.ignition ? '#2e7d32' : '#c62828'
+                    }}
+                  />
+                )}
+              </Typography>
+              <Typography className={classes.plate}>
+                {device?.uniqueId || device?.plate || ''}
+              </Typography>
+            </div>
+            <Chip
+              label={statusOnline ? t('sharedOnline') : t('sharedOffline')}
+              className={classes.statusChip}
+              style={{
+                backgroundColor: statusOnline ? '#e8f5e9' : '#ffebee',
+                color: statusOnline ? '#2e7d32' : '#c62828'
+              }}
+            />
           </Box>
-        )}
-      </Box>
+
+          {position && (
+            <Box className={classes.scrollContent}>
+              <Table size="small" className={classes.attributesTable}>
+                <TableBody>
+                  {positionItems
+                    .split(',')
+                    .filter((key) => position.hasOwnProperty(key) || (position.attributes && position.attributes.hasOwnProperty(key)))
+                    .map((key) => (
+                      <StatusRow
+                        key={key}
+                        name={positionAttributes[key]?.name || key}
+                        content={
+                          key === 'address' && position.address && typeof position.address === 'string'
+                            ? position.address.split(',')[0]
+                            : (
+                              <PositionValue
+                                position={position}
+                                property={position.hasOwnProperty(key) ? key : null}
+                                attribute={position.hasOwnProperty(key) ? null : key}
+                              />
+                            )
+                        }
+                      />
+                    ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+        </Box>
+      </Collapse>
 
       <Box className={classes.actionsBar}>
         <Tooltip title={t('lock')}>
