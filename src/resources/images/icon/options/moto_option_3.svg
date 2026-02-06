@@ -1,0 +1,22 @@
+<svg width="100" height="200" viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow3">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow3)">
+    <!-- Wheels (Smaller) -->
+    <rect x="44" y="20" width="12" height="20" rx="2" fill="#1a1a1a" />
+    <rect x="44" y="150" width="12" height="20" rx="2" fill="#1a1a1a" />
+    <!-- Floorboard -->
+    <path d="M 35,60 Q 50,55 65,60 L 70,140 Q 50,150 30,140 Z" fill="#eee" />
+    <!-- Front Shield -->
+    <path d="M 30,50 Q 50,40 70,50 L 70,60 L 30,60 Z" fill="#ccc" />
+    <!-- Seat -->
+    <rect x="40" y="110" width="20" height="40" rx="8" fill="#6d4c41" />
+    <!-- Handlebars -->
+    <rect x="30" y="55" width="40" height="6" rx="2" fill="#666" />
+    <!-- Box at back -->
+    <rect x="38" y="160" width="24" height="20" rx="2" fill="#bbb" />
+  </g>
+</svg>

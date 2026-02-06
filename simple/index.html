@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPScell Rastreamento</title>
+
+<link href="https://unpkg.com/@picocss/pico@2.0.6/css/pico.min.css" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet">
+
+<style>
+body {
+  background:#0f172a;
+}
+
+.login-box {
+  background:#020617;
+  padding:30px;
+  border-radius:10px;
+  box-shadow:0 0 20px rgba(0,0,0,.6);
+}
+
+h2 {
+  color:#38bdf8;
+  text-align:center;
+}
+
+</style>
+</head>
+
+<body style="margin:0;padding:0">
+
+<div id="content" style="width:100%;height:100%;position:fixed"></div>
+
+<script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+
+const LoginScreen = ({ server, setServer, setUser }) => {
+
+  const [userName, setUserName] = React.useState('');
+  const [password, setPassword] = React.useState('');
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    const fetchData = async () => {
+
+      if (server.newServer) {
+
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: userName, email: userName, password })
+        });
+
+        if (response.ok) {
+          setServer({ ...server, newServer: false });
+        }
+
+      } else {
+
+        const query =
+          `email=${encodeURIComponent(userName)}&password=${encodeURIComponent(password)}`;
+
+        const response = await fetch('/api/session', {
+          method: 'POST',
+          body: new URLSearchParams(query)
+        });
+
+        if (response.ok) {
+          setUser(await response.json());
+        }
+      }
+    }
+
+    fetchData();
+  };
+
+  return (
+    <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:'100%'}}>
+
+      <form className="login-box" onSubmit={handleSubmit} style={{width:'320px'}}>
+
+        <h2>GPScell Rastreamento</h2>
+
+        <input
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+          placeholder="Usuário ou Email"
+        />
+
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Senha"
+        />
+
+        <button type="submit">
+          {server.newServer ? 'Criar Conta' : 'Entrar'}
+        </button>
+
+      </form>
+
+    </div>
+  );
+};
+
+const MainScreen = ({ setUser }) => {
+
+  const mapContainer = React.useRef();
+  const map = React.useRef();
+
+  React.useEffect(() => {
+    map.current = new maplibregl.Map({
+      container: mapContainer.current,
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: [0,0],
+      zoom: 1
+    });
+  }, []);
+
+  const [devices, setDevices] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      const devicesResponse = await fetch('/api/devices');
+      if (devicesResponse.ok) {
+        setDevices(await devicesResponse.json());
+      }
+    }
+    fetchData();
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/session', { method:'DELETE' });
+    setUser(null);
+  };
+
+  return (
+    <div style={{width:'100%',height:'100%',display:'flex'}}>
+
+      <div style={{width:'260px',padding:'10px'}}>
+
+        <strong>Dispositivos</strong>
+
+        <ul>
+          {devices.map(d => (
+            <li key={d.id}>{d.name}</li>
+          ))}
+        </ul>
+
+        <button onClick={handleLogout}>Sair</button>
+
+      </div>
+
+      <div style={{flexGrow:1}} ref={mapContainer}></div>
+
+    </div>
+  );
+};
+
+const App = () => {
+
+  const [server, setServer] = React.useState();
+  const [user, setUser] = React.useState();
+
+  React.useEffect(() => {
+
+    const fetchData = async () => {
+
+      const serverResponse = await fetch('/api/server');
+      if (serverResponse.ok) {
+        setServer(await serverResponse.json());
+      }
+
+      const sessionResponse = await fetch('/api/session');
+      if (sessionResponse.ok) {
+        setUser(await sessionResponse.json());
+      }
+    }
+
+    fetchData();
+
+  }, []);
+
+  return user ? (
+    <MainScreen setUser={setUser}/>
+  ) : server ? (
+    <LoginScreen
+      server={server}
+      setServer={setServer}
+      setUser={setUser}
+    />
+  ) : '';
+};
+
+ReactDOM.render(<App />, document.getElementById('content'));
+
+</script>
+
+</body>
+</html>
