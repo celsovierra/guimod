@@ -29,54 +29,94 @@ export class SwitcherControl {
       selectedStyle = this.styles[0].id;
     }
 
-    while (this.mapStyleContainer.firstChild) {
-      this.mapStyleContainer.removeChild(this.mapStyleContainer.firstChild);
+    if (this.mapStyleContainer) {
+      while (this.mapStyleContainer.firstChild) {
+        this.mapStyleContainer.removeChild(this.mapStyleContainer.firstChild);
+      }
     }
 
     let selectedStyleElement;
 
     for (const style of this.styles) {
-      const styleElement = document.createElement('button');
-      styleElement.type = 'button';
-      styleElement.innerText = style.title;
-      styleElement.dataset.id = style.id;
-      styleElement.dataset.style = JSON.stringify(style.style);
-      styleElement.addEventListener('click', (event) => {
-        const { target } = event;
-        if (!target.classList.contains('active')) {
-          this.onSelectStyle(target);
+      if (this.mapStyleContainer) {
+        const styleElement = document.createElement('button');
+        styleElement.type = 'button';
+        styleElement.innerText = style.title;
+        styleElement.dataset.id = style.id;
+        styleElement.dataset.style = JSON.stringify(style.style);
+        styleElement.addEventListener('click', (event) => {
+          const { target } = event;
+          if (!target.classList.contains('active')) {
+            this.onSelectStyle(target);
+          }
+        });
+        if (style.id === selectedStyle) {
+          selectedStyleElement = styleElement;
+          styleElement.classList.add('active');
         }
-      });
-      if (style.id === selectedStyle) {
-        selectedStyleElement = styleElement;
-        styleElement.classList.add('active');
+        this.mapStyleContainer.appendChild(styleElement);
       }
-      this.mapStyleContainer.appendChild(styleElement);
     }
 
     if (this.currentStyle !== selectedStyle) {
-      this.onSelectStyle(selectedStyleElement);
+      if (this.mapStyleContainer) {
+        this.onSelectStyle({ dataset: { id: selectedStyle } });
+      } else {
+        // Fallback for when UI is enabled but not rendered, or programmatic switch
+        // But onSelectStyle also tries to access DOM.
+        // We should use setStyle logic internally.
+        const style = this.styles.find((it) => it.id === selectedStyle);
+        if (style && this.map) {
+          this.onBeforeSwitch();
+          this.map.setStyle(style.style, { diff: false });
+          this.map.setTransformRequest(style.transformRequest);
+          this.onSwitch(selectedStyle);
+          this.currentStyle = selectedStyle;
+          this.onAfterSwitch();
+        }
+      }
       this.currentStyle = selectedStyle;
     }
+  }
+
+  setStyle(styleId) {
+    const style = this.styles.find((it) => it.id === styleId);
+    if (!style) return;
+
+    this.onBeforeSwitch();
+
+    if (this.map) {
+      this.map.setStyle(style.style, { diff: false });
+      this.map.setTransformRequest(style.transformRequest);
+    }
+
+    this.onSwitch(styleId);
+    this.currentStyle = styleId;
+
+    this.onAfterSwitch();
   }
 
   onSelectStyle(target) {
     this.onBeforeSwitch();
 
     const style = this.styles.find((it) => it.id === target.dataset.id);
-    this.map.setStyle(style.style, { diff: false });
-    this.map.setTransformRequest(style.transformRequest);
+    if (this.map) {
+      this.map.setStyle(style.style, { diff: false });
+      this.map.setTransformRequest(style.transformRequest);
+    }
 
     this.onSwitch(target.dataset.id);
 
-    this.mapStyleContainer.style.display = 'none';
-    this.styleButton.style.display = 'block';
+    if (this.mapStyleContainer && this.styleButton) {
+      this.mapStyleContainer.style.display = 'none';
+      this.styleButton.style.display = 'block';
 
-    const elements = this.mapStyleContainer.getElementsByClassName('active');
-    while (elements[0]) {
-      elements[0].classList.remove('active');
+      const elements = this.mapStyleContainer.getElementsByClassName('active');
+      while (elements[0]) {
+        elements[0].classList.remove('active');
+      }
+      target.classList.add('active');
     }
-    target.classList.add('active');
 
     this.currentStyle = target.dataset.id;
 

@@ -219,16 +219,20 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
     [id, selected].forEach((source) => {
       map.getSource(source)?.setData({
         type: 'FeatureCollection',
-        features: positions.filter((it) => Object.prototype.hasOwnProperty.call(devices, it.deviceId))
+        features: positions
+          .filter((it) => it && it.deviceId && Object.prototype.hasOwnProperty.call(devices, it.deviceId))
           .filter((it) => {
-            if (selectedDeviceId) {
-              return source === selected && it.deviceId === selectedDeviceId;
+            if (source === selected) {
+              return selectedDeviceId && it.deviceId === selectedDeviceId;
             }
-            return source === id;
+            return true;
           })
           .map((position) => ({
             type: 'Feature',
-            geometry: { type: 'Point', coordinates: [position.longitude, position.latitude] },
+            geometry: {
+              type: 'Point',
+              coordinates: [position.longitude, position.latitude],
+            },
             properties: createFeature(devices, position, selectedPosition && selectedPosition.id, geofences),
           })),
       });
@@ -237,16 +241,13 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
     // Update global anchor circles
     // console.log('[DEBUG] Checking anchors for', positions.length, 'positions');
     const anchorFeatures = positions
-      .filter((pos) => Object.prototype.hasOwnProperty.call(devices, pos.deviceId))
+      .filter((pos) => pos && pos.deviceId && Object.prototype.hasOwnProperty.call(devices, pos.deviceId))
       .filter((pos) => {
         const device = devices[pos.deviceId];
-        const hasAnchorGeofence = device.geofenceIds?.some(id => geofences[id]?.name?.startsWith('Âncora'));
-        const isAnchored = device.attributes?.anchor || hasAnchorGeofence;
+        if (!device) return false;
 
-        if (isAnchored) {
-          console.log('[DEBUG] Found anchor for device', device.name, 'GeofenceIds:', device.geofenceIds);
-        }
-        return isAnchored;
+        const hasAnchorGeofence = device.geofenceIds?.some((id) => geofences?.[id]?.name?.startsWith('Âncora'));
+        return device.attributes?.anchor || hasAnchorGeofence;
       })
       .map((pos) => {
         const center = [pos.longitude, pos.latitude];

@@ -13,8 +13,6 @@ import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import ReportFilter, { updateReportParams } from './components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import PageLayout from '../common/components/PageLayout';
-import ReportsMenu from './components/ReportsMenu';
 import PositionValue from '../common/components/PositionValue';
 import ColumnSelect from './components/ColumnSelect';
 import usePositionAttributes from '../common/attributes/usePositionAttributes';
@@ -55,20 +53,30 @@ const PositionsReportPage = () => {
   const [selectedStop, setSelectedStop] = useState(null);
 
   const stops = useMemo(() => {
-    const threshold = 1; // knots
-    const minDuration = 2 * 60 * 1000; // 2 mins
+    // Thresholds
+    const minDuration = 5 * 60 * 1000; // 5 minutes
     const result = [];
+
     let startItem = null;
+    let startTime = null;
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.speed <= threshold) {
-        if (!startItem) startItem = item;
+      const ignition = item?.attributes?.ignition;
+
+      // STRICT logic: Stop is ONLY potential if Ignition is EXPLICITLY FALSE.
+      // If ignition is true or undefined, it's not a valid "Stop" by these rules.
+      if (ignition === false) {
+        if (!startItem) {
+          startItem = item;
+          startTime = dayjs(item.fixTime);
+        }
       } else {
+        // Ignition ON (true) or Missing (undefined) -> Stop ended or never started
         if (startItem) {
-          const startTime = dayjs(startItem.fixTime);
           const endTime = dayjs(items[i - 1].fixTime);
           const duration = endTime.diff(startTime);
+
           if (duration >= minDuration) {
             result.push({
               ...startItem,
@@ -79,9 +87,26 @@ const PositionsReportPage = () => {
             });
           }
           startItem = null;
+          startTime = null;
         }
       }
     }
+
+    // Check if the route ENDS in a stop
+    if (startItem) {
+      const endTime = dayjs(items[items.length - 1].fixTime);
+      const duration = endTime.diff(startTime);
+      if (duration >= minDuration) {
+        result.push({
+          ...startItem,
+          startTime: startTime,
+          endTime: endTime,
+          duration: duration,
+          address: startItem.address
+        });
+      }
+    }
+
     return result;
   }, [items]);
 
@@ -155,199 +180,122 @@ const PositionsReportPage = () => {
   });
 
   return (
-    <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportPositions']}>
-      <div className={classes.container}>
-        {selectedItem && (
-          <div className={classes.containerMap} style={items.length > 0 ? { flexBasis: '100%', height: '100%' } : {}}>
-            <MapView>
-              <MapGeofence />
-              {[...new Set(items.map((it) => it.deviceId))].map((deviceId) => {
-                const positions = items.filter((position) => position.deviceId === deviceId);
-                return (
-                  <Fragment key={deviceId}>
-                    <MapRoutePath positions={positions} />
-                    <MapRoutePoints positions={positions} onClick={onMapPointClick} />
-                  </Fragment>
-                );
-              })}
-              <MapPositions positions={[selectedItem]} titleField="fixTime" />
-              <MapStops stops={stops} onClick={setSelectedStop} />
-            </MapView>
-            <MapScale />
-            <MapCamera positions={items} />
+    <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      <div className={classes.container} style={{ height: '100%', width: '100%' }}>
+        <div className={classes.containerMap} style={{ flex: 1, position: 'relative', height: '100%' }}>
+          <MapView>
+            <MapGeofence />
+            {[...new Set(items.map((it) => it.deviceId))].map((deviceId) => {
+              const positions = items.filter((position) => position.deviceId === deviceId);
+              return (
+                <Fragment key={deviceId}>
+                  <MapRoutePath positions={positions} />
+                  <MapRoutePoints positions={positions} onClick={onMapPointClick} />
+                </Fragment>
+              );
+            })}
+            <MapPositions positions={[selectedItem]} titleField="fixTime" />
+            <MapStops stops={stops} onClick={setSelectedStop} />
+          </MapView>
+          <MapScale />
+          <MapCamera positions={items} />
 
-            {items.length > 0 && (
-              <Box sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 1000 }}>
-                <Paper elevation={3} sx={{ borderRadius: 4, px: 2, py: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <IconButton size="small" onClick={() => updateDate(currentDate.subtract(1, 'day'))}>
-                    <ArrowBackIcon fontSize="small" />
-                  </IconButton>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" variant={dayjs().isSame(currentDate, 'day') ? 'contained' : 'text'} onClick={() => updateDate(dayjs())}>
-                      {t('reportToday')}
-                    </Button>
-                    <Button size="small" variant={dayjs().subtract(1, 'day').isSame(currentDate, 'day') ? 'contained' : 'text'} onClick={() => updateDate(dayjs().subtract(1, 'day'))}>
-                      {t('reportYesterday')}
-                    </Button>
-                  </Stack>
-                  <Typography variant="body2" sx={{ mx: 1, fontWeight: 500 }}>
-                    {currentDate.format('DD/MM/YYYY')}
-                  </Typography>
-                  <IconButton size="small" onClick={() => updateDate(currentDate.add(1, 'day'))}>
-                    <ArrowForwardIcon fontSize="small" />
-                  </IconButton>
-                </Paper>
-              </Box>
-            )}
+          {/* Top Filter Bar Overlaid */}
+          <Box sx={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 1000, pointerEvents: 'none', display: 'flex', justifyContent: 'center' }}>
+            <Paper elevation={4} sx={{ pointerEvents: 'auto', p: 1.5, borderRadius: '12px', display: 'flex', gap: 2, alignItems: 'center', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', maxWidth: '95%', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+              <ReportFilter onShow={onShow} onExport={onExport} onSchedule={onSchedule} deviceType="single" loading={loading} ignoreFormStyles />
+            </Paper>
+          </Box>
 
-            {selectedStop && (
-              <div style={{ position: 'absolute', top: 60, right: 20, zIndex: 1000 }}>
-                <Card elevation={4} sx={{ width: 280, borderRadius: 3, overflow: 'hidden' }}>
-                  <Box sx={{ p: 1.5, bgcolor: 'error.main', color: 'error.contrastText', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Detalhes da Parada</Typography>
-                    <IconButton size="small" onClick={() => setSelectedStop(null)} sx={{ color: 'inherit' }}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">Chegada</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {selectedStop.startTime.format('HH:mm:ss')}
-                      </Typography>
+          {selectedStop && (
+            <div style={{ position: 'absolute', top: 100, right: 20, zIndex: 1000 }}>
+              <Card elevation={6} sx={{ width: 300, borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <Box sx={{
+                  p: 2,
+                  background: 'linear-gradient(135deg, #1E88E5 0%, #42A5F5 100%)', // Blue gradient
+                  color: '#fff',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Detalhes da Parada</Typography>
+                  <IconButton size="small" onClick={() => setSelectedStop(null)} sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+                <CardContent sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(5px)' }}>
+                  <Stack spacing={2}>
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">Data</Typography>
+                      <Typography variant="body2" fontWeight="600">{selectedStop.startTime.format('DD/MM/YYYY')}</Typography>
                     </Box>
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">Saída</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {selectedStop.endTime.format('HH:mm:ss')}
-                      </Typography>
+                    <Divider />
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">Início</Typography>
+                      <Typography variant="body2" fontWeight="600">{selectedStop.startTime.format('HH:mm:ss')}</Typography>
                     </Box>
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">Tempo Total</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {Math.floor(selectedStop.duration / 60000)} min
-                      </Typography>
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">Fim</Typography>
+                      <Typography variant="body2" fontWeight="600">{selectedStop.endTime.format('HH:mm:ss')}</Typography>
+                    </Box>
+                    <Divider />
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">Tempo Total</Typography>
+                      <Chip label={`${Math.floor(selectedStop.duration / 60000)} min`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 'bold' }} />
                     </Box>
                     {selectedStop.address && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">{t('positionAddress')}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
-                          {selectedStop.address}
-                        </Typography>
+                      <Box sx={{ mt: 1, bgcolor: '#f5f5f5', p: 1, borderRadius: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>{t('positionAddress')}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.3 }}>{selectedStop.address}</Typography>
                       </Box>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-            {/* Keeping existing Point Popup but possibly adjusting position if both open? They are independent. */}
-            {selectedItem && (
-              <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}>
-                <Card elevation={4} sx={{ width: 280, borderRadius: 3, overflow: 'hidden' }}>
-                  <Box sx={{ p: 1.5, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('reportDetail')}</Typography>
-                    <IconButton size="small" onClick={() => setSelectedItem(null)} sx={{ color: 'inherit' }}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">{t('positionFixTime')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        <PositionValue position={selectedItem} property="fixTime" />
-                      </Typography>
+          {selectedItem && (
+            <div style={{ position: 'absolute', top: 100, right: selectedStop ? 340 : 20, zIndex: 1000, transition: 'right 0.3s' }}>
+              <Card elevation={6} sx={{ width: 300, borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <Box sx={{
+                  p: 2,
+                  background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                  color: '#fff',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Detalhes do Ponto</Typography>
+                  <IconButton size="small" onClick={() => setSelectedItem(null)} sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+                <CardContent sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(5px)' }}>
+                  <Stack spacing={2}>
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">{t('positionFixTime')}</Typography>
+                      <Typography variant="body2" fontWeight="600"><PositionValue position={selectedItem} property="fixTime" /></Typography>
                     </Box>
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">{t('positionSpeed')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        <PositionValue position={selectedItem} property="speed" />
-                      </Typography>
+                    <Divider />
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">{t('positionSpeed')}</Typography>
+                      <Typography variant="body2" fontWeight="600"><PositionValue position={selectedItem} property="speed" /></Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">{t('positionAddress')}</Typography>
+                    <Box sx={{ mt: 1, bgcolor: '#f5f5f5', p: 1, borderRadius: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>{t('positionAddress')}</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
                         <PositionValue position={selectedItem} property="address" />
                       </Typography>
                     </Box>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        )}
-        <div className={classes.containerMain} style={items.length > 0 ? { display: 'none' } : {}}>
-          <div className={classes.header}>
-            <ReportFilter onShow={onShow} onExport={onExport} onSchedule={onSchedule} deviceType="single" loading={loading}>
-              <div className={classes.filterItem}>
-                <SelectField
-                  value={geofenceId}
-                  onChange={(e) => {
-                    const values = e.target.value ? [e.target.value] : [];
-                    updateReportParams(searchParams, setSearchParams, 'geofenceId', values);
-                  }}
-                  endpoint="/api/geofences"
-                  label={t('sharedGeofence')}
-                  fullWidth
-                />
-              </div>
-              <ColumnSelect
-                columns={columns}
-                setColumns={setColumns}
-                columnsArray={available}
-                rawValues
-                disabled={!items.length}
-              />
-            </ReportFilter>
-          </div>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell className={classes.columnAction} />
-                {columns.map((key) => (<TableCell key={key}>{positionAttributes[key]?.name || key}</TableCell>))}
-                <TableCell className={classes.columnAction} />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {!loading ? items.slice(0, 4000).map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className={classes.columnAction} padding="none">
-                    {selectedItem === item ? (
-                      <IconButton size="small" onClick={() => setSelectedItem(null)} ref={selectedIcon}>
-                        <GpsFixedIcon fontSize="small" />
-                      </IconButton>
-                    ) : (
-                      <IconButton size="small" onClick={() => setSelectedItem(item)}>
-                        <LocationSearchingIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                  {columns.map((key) => (
-                    <TableCell key={key}>
-                      <PositionValue
-                        position={item}
-                        property={item.hasOwnProperty(key) ? key : null}
-                        attribute={item.hasOwnProperty(key) ? null : key}
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell className={classes.actionCellPadding}>
-                    <CollectionActions
-                      itemId={item.id}
-                      endpoint="positions"
-                      readonly={readonly}
-                      setTimestamp={() => {
-                        setItems(items.filter((position) => position.id !== item.id));
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              )) : (<TableShimmer columns={columns.length + 1} startAction />)}
-            </TableBody>
-          </Table>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 };
 

@@ -6,7 +6,6 @@ import MapView from '../map/core/MapView';
 import MapSelectedDevice from '../map/main/MapSelectedDevice';
 import MapAccuracy from '../map/main/MapAccuracy';
 import MapGeofence from '../map/MapGeofence';
-import MapCurrentLocation from '../map/MapCurrentLocation';
 import PoiMap from '../map/main/PoiMap';
 import MapPadding from '../map/MapPadding';
 import { devicesActions } from '../store';
@@ -14,11 +13,9 @@ import MapDefaultCamera from '../map/main/MapDefaultCamera';
 import MapLiveRoutes from '../map/main/MapLiveRoutes';
 import MapPositions from '../map/MapPositions.jsx';
 import MapMarkers from '../map/MapMarkers';
-import MapOverlay from '../map/overlay/MapOverlay';
-import MapGeocoder from '../map/geocoder/MapGeocoder';
 import MapScale from '../map/MapScale';
-import MapNotification from '../map/notification/MapNotification';
 import useFeatures from '../common/util/useFeatures';
+import MapSpeedDial from './MapSpeedDial';
 
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, devicesOpen }) => {
   const theme = useTheme();
@@ -37,7 +34,6 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, devicesOp
   return (
     <>
       <MapView>
-        <MapOverlay />
         <MapGeofence />
         <MapAccuracy positions={filteredPositions} />
         <MapLiveRoutes deviceIds={filteredPositions.map((p) => p.deviceId)} />
@@ -62,13 +58,13 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick, devicesOp
         <MapDefaultCamera />
         <MapSelectedDevice />
         <PoiMap />
+        <MapSpeedDial
+          eventsAvailable={eventsAvailable}
+          onEventsClick={onEventsClick}
+          disableEvents={features.disableEvents}
+        />
       </MapView>
       <MapScale />
-      <MapCurrentLocation />
-      <MapGeocoder />
-      {!features.disableEvents && (
-        <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
-      )}
       {desktop && devicesOpen && (
         <MapPadding start={parseInt(theme.dimensions.drawerWidthDesktop, 10) + parseInt(theme.spacing(1.5), 10)} />
       )}

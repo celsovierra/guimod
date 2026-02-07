@@ -25,6 +25,20 @@ const MapStops = ({ stops, onClick }) => {
             });
         }
 
+        if (!map.getLayer(`${id}-circle`)) {
+            map.addLayer({
+                id: `${id}-circle`,
+                type: 'circle',
+                source: id,
+                paint: {
+                    'circle-radius': 12,
+                    'circle-color': '#1E88E5', // Blue color for Parking
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                },
+            });
+        }
+
         if (!map.getLayer(id)) {
             map.addLayer({
                 id,
@@ -33,14 +47,12 @@ const MapStops = ({ stops, onClick }) => {
                 layout: {
                     'text-field': 'P',
                     'text-font': findFonts(map),
-                    'text-size': 18,
+                    'text-size': 12,
                     'text-allow-overlap': true,
                     'icon-allow-overlap': true,
                 },
                 paint: {
-                    'text-color': theme.palette.error.main,
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 2,
+                    'text-color': '#ffffff',
                 },
             });
         }
@@ -49,25 +61,26 @@ const MapStops = ({ stops, onClick }) => {
         const onMouseLeave = () => map.getCanvas().style.cursor = '';
 
         const onMapClick = (e) => {
-            const features = map.queryRenderedFeatures(e.point, { layers: [id] });
+            const features = map.queryRenderedFeatures(e.point, { layers: [`${id}-circle`, id] });
             if (features.length) {
                 e.preventDefault();
                 const index = features[0].properties.index;
-                if (onClick && stopsRef.current[index]) {
-                    onClick(stopsRef.current[index]);
-                }
+                onClick(stopsRef.current[index]);
             }
         };
 
-        map.on('mouseenter', id, onMouseEnter);
-        map.on('mouseleave', id, onMouseLeave);
+        map.on('mouseenter', `${id}-circle`, onMouseEnter);
+        map.on('mouseleave', `${id}-circle`, onMouseLeave);
+        map.on('click', `${id}-circle`, onMapClick);
         map.on('click', id, onMapClick);
 
         return () => {
-            map.off('mouseenter', id, onMouseEnter);
-            map.off('mouseleave', id, onMouseLeave);
+            map.off('mouseenter', `${id}-circle`, onMouseEnter);
+            map.off('mouseleave', `${id}-circle`, onMouseLeave);
+            map.off('click', `${id}-circle`, onMapClick);
             map.off('click', id, onMapClick);
             if (map.getLayer(id)) map.removeLayer(id);
+            if (map.getLayer(`${id}-circle`)) map.removeLayer(`${id}-circle`);
             if (map.getSource(id)) map.removeSource(id);
         };
     }, [id, theme, onClick]);

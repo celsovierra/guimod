@@ -28,6 +28,19 @@ const MapRoutePath = ({ positions }) => {
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
 
   useEffect(() => {
+    map.getSource(id)?.setData({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: positions.map((p) => [p.longitude, p.latitude]),
+      },
+      properties: {
+        color: reportColor || '#1976d2', // Strong Blue
+      },
+    });
+  }, [positions, reportColor]);
+
+  useEffect(() => {
     map.addSource(id, {
       type: 'geojson',
       data: {
@@ -48,48 +61,16 @@ const MapRoutePath = ({ positions }) => {
       },
       paint: {
         'line-color': ['get', 'color'],
-        'line-width': ['get', 'width'],
-        'line-opacity': ['get', 'opacity'],
+        'line-width': 4,
+        'line-opacity': 0.8,
       },
     });
 
     return () => {
-      if (map.getLayer(`${id}-line`)) {
-        map.removeLayer(`${id}-line`);
-      }
-      if (map.getSource(id)) {
-        map.removeSource(id);
-      }
+      if (map.getLayer(`${id}-line`)) map.removeLayer(`${id}-line`);
+      if (map.getSource(id)) map.removeSource(id);
     };
   }, []);
-
-  useEffect(() => {
-    const minSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.min(a, b), Infinity);
-    const maxSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.max(a, b), -Infinity);
-    const features = [];
-    for (let i = 0; i < positions.length - 1; i += 1) {
-      features.push({
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: [[positions[i].longitude, positions[i].latitude], [positions[i + 1].longitude, positions[i + 1].latitude]],
-        },
-        properties: {
-          color: reportColor || getSpeedColor(
-            positions[i + 1].speed,
-            minSpeed,
-            maxSpeed,
-          ),
-          width: mapLineWidth,
-          opacity: mapLineOpacity,
-        },
-      });
-    }
-    map.getSource(id)?.setData({
-      type: 'FeatureCollection',
-      features,
-    });
-  }, [theme, positions, reportColor, mapLineWidth, mapLineOpacity]);
 
   return null;
 };

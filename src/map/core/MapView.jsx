@@ -6,7 +6,6 @@ import React, {
   useMemo,
 } from 'react';
 import { useTheme } from '@mui/material';
-import { SwitcherControl } from '../switcher/switcher';
 import { useAttributePreference, usePreference } from '../../common/util/preferences';
 import usePersistedState, { savePersistedState } from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
@@ -68,23 +67,7 @@ const MapView = ({ children }) => {
   const mapboxAccessToken = useAttributePreference('mapboxAccessToken');
   const maxZoom = useAttributePreference('web.maxZoom');
 
-  const switcher = useMemo(() => new SwitcherControl(
-    () => updateReadyValue(false),
-    (styleId) => savePersistedState('selectedMapStyle', styleId),
-    () => {
-      map.once('styledata', () => {
-        const waiting = () => {
-          if (!map.loaded()) {
-            setTimeout(waiting, 33);
-          } else {
-            initMap();
-            updateReadyValue(true);
-          }
-        };
-        waiting();
-      });
-    },
-  ), []);
+
 
   useEffectAsync(async () => {
     if (theme.direction === 'rtl') {
@@ -94,16 +77,11 @@ const MapView = ({ children }) => {
 
   useEffect(() => {
     const attribution = new maplibregl.AttributionControl({ compact: true });
-    const navigation = new maplibregl.NavigationControl();
     map.addControl(attribution, theme.direction === 'rtl' ? 'bottom-left' : 'bottom-right');
-    map.addControl(navigation, theme.direction === 'rtl' ? 'top-left' : 'top-right');
-    map.addControl(switcher, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     return () => {
-      map.removeControl(switcher);
-      map.removeControl(navigation);
       map.removeControl(attribution);
     };
-  }, [theme.direction, switcher]);
+  }, [theme.direction]);
 
   useEffect(() => {
     if (maxZoom) {
@@ -118,8 +96,40 @@ const MapView = ({ children }) => {
   useEffect(() => {
     const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
     const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.id === 'osm');
-    switcher.updateStyles(styles, defaultMapStyle);
-  }, [mapStyles, defaultMapStyle, activeMapStyles, switcher]);
+
+    const style = styles.find((s) => s.id === defaultMapStyle) || styles[0];
+    if (style) {
+      map.setStyle(style.style);
+      map.setTransformRequest(style.transformRequest);
+    }
+  }, [mapStyles, defaultMapStyle, activeMapStyles]);
+
+  // Custom Initialization Logic replacing SwitcherControl
+  useEffect(() => {
+    const onStyleData = () => {
+      const waiting = () => {
+        if (!map.loaded()) {
+          setTimeout(waiting, 33);
+        } else {
+          initMap();
+          updateReadyValue(true);
+        }
+      };
+      waiting();
+    };
+
+    map.on('styledata', onStyleData);
+
+    // Trigger initial check
+    if (map.loaded()) {
+      initMap();
+      updateReadyValue(true);
+    }
+
+    return () => {
+      map.off('styledata', onStyleData);
+    };
+  }, []);
 
   useEffect(() => {
     const listener = (ready) => setMapReady(ready);
@@ -187,7 +197,7 @@ const MapView = ({ children }) => {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%' }} ref={containerEl}>
+    <div style={{ width: '100%', height: '100%', position: 'relative' }} ref={containerEl}>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child) && child.type.handlesMapReady) {
           return React.cloneElement(child, { mapReady });

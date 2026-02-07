@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   FormControl, InputLabel, Select, MenuItem, Button, ButtonGroup, TextField, Typography,
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import { useTranslation } from '../../common/components/LocalizationProvider';
@@ -181,18 +182,40 @@ const ReportFilter = ({
 
   return (
     <div className={classes.filter}>
+      <div className={classes.filterItem} style={{ flexGrow: 0, marginRight: 8, minWidth: 'auto' }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => window.history.back()}
+          sx={{
+            borderRadius: '12px',
+            textTransform: 'none',
+            fontWeight: 600,
+            color: '#555',
+            borderColor: 'rgba(0,0,0,0.12)',
+            height: 40,
+            padding: '6px 16px',
+            bgcolor: 'white',
+            '&:hover': {
+              borderColor: 'rgba(0,0,0,0.3)',
+              backgroundColor: 'rgba(0,0,0,0.04)'
+            }
+          }}
+        >
+          VOLTAR
+        </Button>
+      </div>
       {deviceType !== 'none' && (
         <div className={classes.filterItem}>
-          <SelectField
-            label={t(deviceType === 'multiple' ? 'deviceTitle' : 'reportDevice')}
-            data={Object.values(devices).sort((a, b) => a.name.localeCompare(b.name))}
-            value={deviceType === 'multiple' ? deviceIds : deviceIds.find(() => true)}
-            onChange={(e) => {
-              const values = deviceType === 'multiple' ? e.target.value : [e.target.value].filter((id) => id);
-              updateReportParams(searchParams, setSearchParams, 'deviceId', values);
-            }}
-            multiple={deviceType === 'multiple'}
+          <TextField
+            label={t('reportDevice')}
+            value={devices[deviceIds[0]]?.name || ''}
             fullWidth
+            InputProps={{
+              readOnly: true,
+            }}
+            variant="outlined"
+            size="small"
           />
         </div>
       )}
@@ -214,47 +237,49 @@ const ReportFilter = ({
       {selectedOption !== 'schedule' ? (
         <>
           <div className={classes.filterItem}>
-            <ButtonGroup fullWidth variant="outlined" disabled={disabled} size="small">
-              <Button onClick={() => handleQuickPreset('today')}>{t('reportToday')}</Button>
-              <Button onClick={() => handleQuickPreset('yesterday')}>{t('reportYesterday')}</Button>
-              <Button onClick={() => handleQuickPreset('hour')}>1h</Button>
+            <ButtonGroup fullWidth size="small" variant="text" sx={{ gap: 1 }}>
+              <Button onClick={() => handleQuickPreset('hour')} sx={{ color: '#555', fontWeight: 500, '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' } }}>1H</Button>
+              <Button onClick={() => handleQuickPreset('today')} sx={{ color: '#555', fontWeight: 500, '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' } }}>{t('reportToday')}</Button>
+              <Button onClick={() => handleQuickPreset('yesterday')} sx={{ color: '#555', fontWeight: 500, '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' } }}>{t('reportYesterday')}</Button>
             </ButtonGroup>
           </div>
           <div className={classes.filterItem}>
-            <FormControl fullWidth>
-              <InputLabel>{t('reportPeriod')}</InputLabel>
-              <Select label={t('reportPeriod')} value={period} onChange={(e) => setPeriod(e.target.value)}>
-                <MenuItem value="today">{t('reportToday')}</MenuItem>
-                <MenuItem value="yesterday">{t('reportYesterday')}</MenuItem>
-                <MenuItem value="thisWeek">{t('reportThisWeek')}</MenuItem>
-                <MenuItem value="previousWeek">{t('reportPreviousWeek')}</MenuItem>
-                <MenuItem value="thisMonth">{t('reportThisMonth')}</MenuItem>
-                <MenuItem value="previousMonth">{t('reportPreviousMonth')}</MenuItem>
-                <MenuItem value="custom">{t('reportCustom')}</MenuItem>
-              </Select>
-            </FormControl>
+            <Button
+              variant={period === 'custom' ? "contained" : "outlined"}
+              color="primary"
+              onClick={() => setPeriod(period === 'custom' ? 'today' : 'custom')}
+              fullWidth
+              size="small"
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Personalizar Data
+            </Button>
           </div>
           {period === 'custom' && (
-            <div className={classes.filterItem}>
-              <TextField
-                label={t('reportFrom')}
-                type="datetime-local"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                fullWidth
-              />
-            </div>
-          )}
-          {period === 'custom' && (
-            <div className={classes.filterItem}>
-              <TextField
-                label={t('reportTo')}
-                type="datetime-local"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                fullWidth
-              />
-            </div>
+            <>
+              <div className={classes.filterItem}>
+                <TextField
+                  label={<span style={{ fontFamily: 'sans-serif', fontWeight: 600, letterSpacing: '0.5px' }}>INÍCIO</span>}
+                  type="datetime-local"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </div>
+              <div className={classes.filterItem}>
+                <TextField
+                  label={<span style={{ fontFamily: 'sans-serif', fontWeight: 600, letterSpacing: '0.5px' }}>FIM</span>}
+                  type="datetime-local"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </div>
+            </>
           )}
         </>
       ) : (
@@ -283,12 +308,12 @@ const ReportFilter = ({
         {Object.keys(options).length === 1 ? (
           <Button
             fullWidth
-            variant="outlined"
-            color="secondary"
+            variant="contained"
             disabled={disabled}
             onClick={onClick}
+            sx={{ bgcolor: '#00897B', '&:hover': { bgcolor: '#00695C' }, borderRadius: '8px', boxShadow: 'none', height: 40 }}
           >
-            <Typography variant="button" noWrap>{t(loading ? 'sharedLoading' : 'reportShow')}</Typography>
+            <Typography variant="button" noWrap sx={{ fontWeight: 600 }}>{t(loading ? 'sharedLoading' : 'reportShow')}</Typography>
           </Button>
         ) : (
           <SplitButton
